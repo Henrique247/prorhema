@@ -57,10 +57,17 @@ export const useExams = () => {
     questions?: any;
   }) => {
     try {
+      // First generate an exam code using the database function
+      const { data: codeData, error: codeError } = await supabase
+        .rpc('generate_exam_code');
+
+      if (codeError) throw codeError;
+
       const { data, error } = await supabase
         .from('exams')
         .insert([{
           ...examData,
+          exam_code: codeData,
           created_by: 'temp-user-id' // Será substituído quando implementarmos auth
         }])
         .select()
