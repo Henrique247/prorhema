@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,9 +8,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { Upload, FileText, Clock, Users, Settings, CheckCircle } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import { useExams } from "@/hooks/useExams";
 
 const CriarProva = () => {
   const [step, setStep] = useState(1);
+  const [createdExam, setCreatedExam] = useState<any>(null);
+  const { createExam } = useExams();
   const [formData, setFormData] = useState({
     titulo: "",
     disciplina: "",
@@ -58,20 +60,43 @@ const CriarProva = () => {
     }
   };
 
-  const handleGerarProva = () => {
-    // Simular processamento de IA
+  const handleGerarProva = async () => {
     toast({
       title: "Gerando prova...",
       description: "A IA está analisando o PDF e gerando as questões.",
     });
     
-    setTimeout(() => {
+    try {
+      // Simular processamento do PDF e gerar questões de exemplo
+      const questoesMock = [
+        {
+          id: 1,
+          tipo: "multipla-escolha",
+          pergunta: "Qual é a capital do Brasil?",
+          opcoes: ["São Paulo", "Rio de Janeiro", "Brasília", "Salvador"],
+          correta: 2
+        },
+        {
+          id: 2,
+          tipo: "verdadeiro-falso",
+          pergunta: "O Brasil é o maior país da América do Sul.",
+          correta: true
+        }
+      ];
+
+      const examData = {
+        title: formData.titulo,
+        pdf_content: formData.arquivo ? "PDF content processed" : undefined,
+        duration_minutes: parseInt(formData.tempoProva),
+        questions: questoesMock
+      };
+
+      const exam = await createExam(examData);
+      setCreatedExam(exam);
       setStep(4);
-      toast({
-        title: "Prova criada com sucesso!",
-        description: "Sua prova foi gerada e está pronta para ser compartilhada.",
-      });
-    }, 3000);
+    } catch (error) {
+      console.error('Erro ao criar prova:', error);
+    }
   };
 
   const renderStep1 = () => (
@@ -359,13 +384,14 @@ const CriarProva = () => {
           <h3 className="font-medium text-green-800 mb-2">Link da Prova</h3>
           <div className="flex items-center space-x-2">
             <Input
-              value="https://prova-ai.com/prova/abc123"
+              value={`${window.location.origin}/prova/${createdExam?.exam_code || 'ABC123'}`}
               readOnly
               className="bg-white"
             />
             <Button
               onClick={() => {
-                navigator.clipboard.writeText("https://prova-ai.com/prova/abc123");
+                const link = `${window.location.origin}/prova/${createdExam?.exam_code || 'ABC123'}`;
+                navigator.clipboard.writeText(link);
                 toast({ title: "Link copiado!", description: "O link foi copiado para a área de transferência." });
               }}
             >
@@ -385,8 +411,8 @@ const CriarProva = () => {
               <span className="ml-2">{formData.titulo}</span>
             </div>
             <div>
-              <span className="text-blue-600">Disciplina:</span>
-              <span className="ml-2">{formData.disciplina}</span>
+              <span className="text-blue-600">Código:</span>
+              <span className="ml-2">{createdExam?.exam_code || 'ABC123'}</span>
             </div>
             <div>
               <span className="text-blue-600">Questões:</span>
@@ -404,6 +430,7 @@ const CriarProva = () => {
             variant="outline" 
             onClick={() => {
               setStep(1);
+              setCreatedExam(null);
               setFormData({
                 titulo: "",
                 disciplina: "",

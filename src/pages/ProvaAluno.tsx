@@ -1,64 +1,62 @@
-
 import { useState, useEffect } from "react";
+import { useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 import { Progress } from "@/components/ui/progress";
 import { Clock, User, AlertTriangle, CheckCircle } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import { useExams } from "@/hooks/useExams";
+import { useExamSubmissions } from "@/hooks/useExamSubmissions";
 
 const ProvaAluno = () => {
+  const { id: examCode } = useParams();
+  const { getExamByCode } = useExams();
+  const { submitExam } = useExamSubmissions();
+  const [exam, setExam] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
   const [step, setStep] = useState("identificacao"); // identificacao, prova, finalizada
   const [nomeAluno, setNomeAluno] = useState("");
-  const [tempoRestante, setTempoRestante] = useState(3600); // 60 minutos em segundos
+  const [tempoRestante, setTempoRestante] = useState(3600);
   const [questaoAtual, setQuestaoAtual] = useState(0);
   const [respostas, setRespostas] = useState<Record<number, any>>({});
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [tentativasCola, setTentativasCola] = useState(0);
 
-  // Dados da prova (exemplo)
-  const dadosProva = {
-    titulo: "Prova de Matemática - Álgebra",
-    disciplina: "Matemática",
-    tempo: 60,
-    questoes: [
-      {
-        id: 1,
-        tipo: "multipla-escolha",
-        pergunta: "Qual é o resultado de 2x + 3 = 7?",
-        opcoes: ["x = 1", "x = 2", "x = 3", "x = 4"],
-        correta: 1
-      },
-      {
-        id: 2,
-        tipo: "verdadeiro-falso",
-        pergunta: "A equação x² - 4 = 0 tem duas soluções reais.",
-        correta: true
-      },
-      {
-        id: 3,
-        tipo: "lacunas",
-        pergunta: "Complete: A fórmula de Bhaskara é x = (-b ± √(_____ - 4ac)) / 2a",
-        resposta: "b²"
-      },
-      {
-        id: 4,
-        tipo: "aberta",
-        pergunta: "Explique o que é uma função quadrática e dê um exemplo."
-      },
-      {
-        id: 5,
-        tipo: "multipla-escolha",
-        pergunta: "Qual é o vértice da parábola y = x² - 4x + 3?",
-        opcoes: ["(2, -1)", "(2, 1)", "(-2, -1)", "(-2, 1)"],
-        correta: 0
+  // Buscar dados da prova
+  useEffect(() => {
+    const fetchExam = async () => {
+      if (!examCode) return;
+      
+      try {
+        const examData = await getExamByCode(examCode);
+        if (examData) {
+          setExam(examData);
+          setTempoRestante(examData.duration_minutes * 60);
+        } else {
+          toast({
+            title: "Prova não encontrada",
+            description: "O código da prova não é válido.",
+            variant: "destructive",
+          });
+        }
+      } catch (error) {
+        console.error('Erro ao carregar prova:', error);
+        toast({
+          title: "Erro ao carregar prova",
+          description: "Não foi possível carregar a prova.",
+          variant: "destructive",
+        });
+      } finally {
+        setLoading(false);
       }
-    ]
-  };
+    };
+
+    fetchExam();
+  }, [examCode, getExamByCode]);
 
   // Timer da prova
   useEffect(() => {
@@ -153,28 +151,19 @@ const ProvaAluno = () => {
     }
   };
 
-  const finalizarProva = () => {
+  const finalizarProva = async () => {
     if (document.fullscreenElement) {
       document.exitFullscreen();
     }
-    setStep("finalizada");
     
-    // Simular download das respostas
-    const dadosResposta = {
-      aluno: nomeAluno,
-      prova: dadosProva.titulo,
-      respostas: respostas,
-      tempoGasto: 3600 - tempoRestante,
-      tentativasCola: tentativasCola
-    };
-    
-    const blob = new Blob([JSON.stringify(dadosResposta, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `prova_${nomeAluno.replace(/\s+/g, '_')}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
+    try {
+      if (exam) {
+        await submitExam(exam.id, nomeAluno, respostas);
+      }
+      setStep("finalizada");
+    } catch (error) {
+      console.error('Erro ao enviar prova:', error);
+    }
   };
 
   const handleResposta = (questaoId: number, resposta: any) => {
@@ -244,6 +233,37 @@ const ProvaAluno = () => {
     }
   };
 
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-green-50 flex items-center justify-center p-4">
+        <Card className="w-full max-w-md">
+          <CardContent className="p-12 text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+            <p className="mt-4 text-gray-500">Carregando prova...</p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  if (!exam) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-green-50 flex items-center justify-center p-4">
+        <Card className="w-full max-w-md">
+          <CardContent className="p-12 text-center">
+            <AlertTriangle className="h-12 w-12 text-red-400 mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-gray-900 mb-2">
+              Prova não encontrada
+            </h3>
+            <p className="text-gray-500">
+              O código da prova não é válido ou a prova não existe.
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   if (step === "identificacao") {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-green-50 flex items-center justify-center p-4">
@@ -254,16 +274,16 @@ const ProvaAluno = () => {
               <span>Identificação do Aluno</span>
             </CardTitle>
             <CardDescription>
-              {dadosProva.titulo}
+              {exam.title}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
               <h3 className="font-medium text-blue-800 mb-2">Informações da Prova</h3>
               <div className="space-y-1 text-sm text-blue-700">
-                <p><strong>Disciplina:</strong> {dadosProva.disciplina}</p>
-                <p><strong>Questões:</strong> {dadosProva.questoes.length}</p>
-                <p><strong>Tempo:</strong> {dadosProva.tempo} minutos</p>
+                <p><strong>Código:</strong> {exam.exam_code}</p>
+                <p><strong>Questões:</strong> {exam.questions?.length || 0}</p>
+                <p><strong>Tempo:</strong> {exam.duration_minutes} minutos</p>
               </div>
             </div>
 
@@ -301,9 +321,9 @@ const ProvaAluno = () => {
     );
   }
 
-  if (step === "prova") {
-    const questaoAtualData = dadosProva.questoes[questaoAtual];
-    const progresso = ((questaoAtual + 1) / dadosProva.questoes.length) * 100;
+  if (step === "prova" && exam.questions && exam.questions.length > 0) {
+    const questaoAtualData = exam.questions[questaoAtual];
+    const progresso = ((questaoAtual + 1) / exam.questions.length) * 100;
 
     return (
       <div className="min-h-screen bg-white p-4">
@@ -311,7 +331,7 @@ const ProvaAluno = () => {
         <div className="max-w-4xl mx-auto">
           <div className="flex items-center justify-between mb-6 p-4 bg-gray-50 rounded-lg">
             <div>
-              <h1 className="text-lg font-bold">{dadosProva.titulo}</h1>
+              <h1 className="text-lg font-bold">{exam.title}</h1>
               <p className="text-sm text-gray-600">Aluno: {nomeAluno}</p>
             </div>
             <div className="flex items-center space-x-4">
@@ -331,7 +351,7 @@ const ProvaAluno = () => {
           {/* Progresso */}
           <div className="mb-6">
             <div className="flex justify-between text-sm text-gray-600 mb-2">
-              <span>Questão {questaoAtual + 1} de {dadosProva.questoes.length}</span>
+              <span>Questão {questaoAtual + 1} de {exam.questions.length}</span>
               <span>{Math.round(progresso)}% concluído</span>
             </div>
             <Progress value={progresso} className="h-2" />
@@ -360,13 +380,13 @@ const ProvaAluno = () => {
               Anterior
             </Button>
             
-            {questaoAtual === dadosProva.questoes.length - 1 ? (
+            {questaoAtual === exam.questions.length - 1 ? (
               <Button onClick={finalizarProva} className="bg-green-600 hover:bg-green-700">
                 Finalizar Prova
               </Button>
             ) : (
               <Button
-                onClick={() => setQuestaoAtual(prev => Math.min(dadosProva.questoes.length - 1, prev + 1))}
+                onClick={() => setQuestaoAtual(prev => Math.min(exam.questions.length - 1, prev + 1))}
               >
                 Próxima
               </Button>
@@ -395,8 +415,8 @@ const ProvaAluno = () => {
               <h3 className="font-medium text-green-800 mb-2">Resumo</h3>
               <div className="space-y-1 text-sm text-green-700">
                 <p><strong>Aluno:</strong> {nomeAluno}</p>
-                <p><strong>Questões respondidas:</strong> {Object.keys(respostas).length}/{dadosProva.questoes.length}</p>
-                <p><strong>Tempo utilizado:</strong> {formatTime(3600 - tempoRestante)}</p>
+                <p><strong>Questões respondidas:</strong> {Object.keys(respostas).length}/{exam.questions?.length || 0}</p>
+                <p><strong>Tempo utilizado:</strong> {formatTime((exam.duration_minutes * 60) - tempoRestante)}</p>
                 {tentativasCola > 0 && (
                   <p><strong>Avisos de segurança:</strong> {tentativasCola}</p>
                 )}
@@ -410,7 +430,7 @@ const ProvaAluno = () => {
               </p>
               
               <Button
-                onClick={() => window.open(`https://wa.me/5511999999999?text=Olá professor, finalizei a prova: ${dadosProva.titulo}`, '_blank')}
+                onClick={() => window.open(`https://wa.me/5511999999999?text=Olá professor, finalizei a prova: ${exam.title}`, '_blank')}
                 className="w-full bg-green-600 hover:bg-green-700"
               >
                 Falar com o Professor no WhatsApp

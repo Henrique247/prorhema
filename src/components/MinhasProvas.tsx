@@ -7,69 +7,20 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { FileText, Users, Clock, BarChart3, Share, Trash, CheckCircle } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import { useExams } from "@/hooks/useExams";
 
 const MinhasProvas = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("todas");
+  const { exams, loading, deleteExam } = useExams();
 
-  // Dados de exemplo das provas
-  const provas = [
-    {
-      id: 1,
-      titulo: "Prova de Matemática - Álgebra",
-      disciplina: "Matemática",
-      questoes: 25,
-      tempo: 60,
-      alunos: 45,
-      status: "ativa",
-      dataCreacao: "2024-01-15",
-      link: "https://prova-ai.com/prova/abc123"
-    },
-    {
-      id: 2,
-      titulo: "Avaliação de Português - Literatura",
-      disciplina: "Português",
-      questoes: 20,
-      tempo: 90,
-      alunos: 38,
-      status: "finalizada",
-      dataCreacao: "2024-01-10",
-      link: "https://prova-ai.com/prova/def456"
-    },
-    {
-      id: 3,
-      titulo: "Teste de História - Brasil Colonial",
-      disciplina: "História",
-      questoes: 15,
-      tempo: 45,
-      alunos: 52,
-      status: "rascunho",
-      dataCreacao: "2024-01-20",
-      link: "https://prova-ai.com/prova/ghi789"
-    }
-  ];
-
-  const filteredProvas = provas.filter(prova => {
-    const matchesSearch = prova.titulo.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         prova.disciplina.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = statusFilter === "todas" || prova.status === statusFilter;
-    return matchesSearch && matchesStatus;
+  const filteredProvas = exams.filter(prova => {
+    const matchesSearch = prova.title.toLowerCase().includes(searchTerm.toLowerCase());
+    return matchesSearch;
   });
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case "ativa":
-        return <Badge className="bg-green-100 text-green-800 hover:bg-green-100">Ativa</Badge>;
-      case "finalizada":
-        return <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-100">Finalizada</Badge>;
-      case "rascunho":
-        return <Badge className="bg-gray-100 text-gray-800 hover:bg-gray-100">Rascunho</Badge>;
-      default:
-        return <Badge variant="outline">{status}</Badge>;
-    }
-  };
-
-  const handleCopyLink = (link: string) => {
+  const handleCopyLink = (examCode: string) => {
+    const link = `${window.location.origin}/prova/${examCode}`;
     navigator.clipboard.writeText(link);
     toast({
       title: "Link copiado!",
@@ -77,12 +28,20 @@ const MinhasProvas = () => {
     });
   };
 
-  const handleDeleteProva = (id: number, titulo: string) => {
-    toast({
-      title: "Prova removida",
-      description: `"${titulo}" foi removida com sucesso.`,
-    });
+  const handleDeleteProva = (id: string, titulo: string) => {
+    deleteExam(id);
   };
+
+  if (loading) {
+    return (
+      <Card>
+        <CardContent className="p-12 text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-gray-500">Carregando provas...</p>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -98,23 +57,10 @@ const MinhasProvas = () => {
           <div className="flex flex-col md:flex-row gap-4">
             <div className="flex-1">
               <Input
-                placeholder="Buscar por título ou disciplina..."
+                placeholder="Buscar por título..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
-            </div>
-            <div className="w-full md:w-48">
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Filtrar por status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="todas">Todas</SelectItem>
-                  <SelectItem value="ativa">Ativas</SelectItem>
-                  <SelectItem value="finalizada">Finalizadas</SelectItem>
-                  <SelectItem value="rascunho">Rascunhos</SelectItem>
-                </SelectContent>
-              </Select>
             </div>
           </div>
         </CardContent>
@@ -129,46 +75,40 @@ const MinhasProvas = () => {
                 <div className="flex-1">
                   <div className="flex items-center gap-3 mb-2">
                     <FileText className="h-5 w-5 text-blue-600" />
-                    <h3 className="text-lg font-semibold">{prova.titulo}</h3>
-                    {getStatusBadge(prova.status)}
+                    <h3 className="text-lg font-semibold">{prova.title}</h3>
+                    <Badge className="bg-green-100 text-green-800 hover:bg-green-100">Ativa</Badge>
                   </div>
                   
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm text-gray-600">
-                    <div className="flex items-center gap-2">
-                      <FileText className="h-4 w-4" />
-                      <span>{prova.disciplina}</span>
-                    </div>
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm text-gray-600">
                     <div className="flex items-center gap-2">
                       <CheckCircle className="h-4 w-4" />
-                      <span>{prova.questoes} questões</span>
+                      <span>Código: {prova.exam_code}</span>
                     </div>
                     <div className="flex items-center gap-2">
                       <Clock className="h-4 w-4" />
-                      <span>{prova.tempo} min</span>
+                      <span>{prova.duration_minutes} min</span>
                     </div>
                     <div className="flex items-center gap-2">
                       <Users className="h-4 w-4" />
-                      <span>{prova.alunos} alunos</span>
+                      <span>0 submissões</span>
                     </div>
                   </div>
                   
                   <p className="text-xs text-gray-500 mt-2">
-                    Criada em {new Date(prova.dataCreacao).toLocaleDateString('pt-BR')}
+                    Criada em {new Date(prova.created_at).toLocaleDateString('pt-BR')}
                   </p>
                 </div>
 
                 <div className="flex flex-col sm:flex-row gap-2 lg:w-auto">
-                  {prova.status === "ativa" && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleCopyLink(prova.link)}
-                      className="flex items-center gap-2"
-                    >
-                      <Share className="h-4 w-4" />
-                      Compartilhar
-                    </Button>
-                  )}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleCopyLink(prova.exam_code)}
+                    className="flex items-center gap-2"
+                  >
+                    <Share className="h-4 w-4" />
+                    Compartilhar
+                  </Button>
                   
                   <Button
                     variant="outline"
@@ -182,7 +122,7 @@ const MinhasProvas = () => {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => handleDeleteProva(prova.id, prova.titulo)}
+                    onClick={() => handleDeleteProva(prova.id, prova.title)}
                     className="flex items-center gap-2 text-red-600 hover:text-red-700"
                   >
                     <Trash className="h-4 w-4" />
@@ -203,11 +143,11 @@ const MinhasProvas = () => {
               Nenhuma prova encontrada
             </h3>
             <p className="text-gray-500 mb-4">
-              {searchTerm || statusFilter !== "todas"
+              {searchTerm
                 ? "Tente ajustar os filtros de busca."
                 : "Você ainda não criou nenhuma prova."}
             </p>
-            {!searchTerm && statusFilter === "todas" && (
+            {!searchTerm && (
               <Button>Criar Primeira Prova</Button>
             )}
           </CardContent>
