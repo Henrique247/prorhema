@@ -10,7 +10,7 @@ export interface Exam {
   exam_code: string;
   duration_minutes: number;
   questions?: any;
-  created_by: string;
+  teacher_id: string;
   created_at: string;
   updated_at: string;
 }
@@ -63,12 +63,21 @@ export const useExams = () => {
 
       if (codeError) throw codeError;
 
+      // Get the teacher ID from the teachers table (using Kenan Mendes for now)
+      const { data: teacherData, error: teacherError } = await supabase
+        .from('teachers')
+        .select('id')
+        .eq('email', 'kenan@prorhema.com')
+        .single();
+
+      if (teacherError) throw teacherError;
+
       const { data, error } = await supabase
         .from('exams')
         .insert([{
           ...examData,
           exam_code: codeData,
-          created_by: 'temp-user-id' // Será substituído quando implementarmos auth
+          teacher_id: teacherData.id
         }])
         .select()
         .single();

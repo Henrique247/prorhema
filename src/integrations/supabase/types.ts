@@ -50,35 +50,70 @@ export type Database = {
       exams: {
         Row: {
           created_at: string
-          created_by: string
           duration_minutes: number
           exam_code: string
           id: string
           pdf_content: string | null
           questions: Json | null
+          teacher_id: string | null
           title: string
           updated_at: string
         }
         Insert: {
           created_at?: string
-          created_by: string
           duration_minutes?: number
           exam_code: string
           id?: string
           pdf_content?: string | null
           questions?: Json | null
+          teacher_id?: string | null
           title: string
           updated_at?: string
         }
         Update: {
           created_at?: string
-          created_by?: string
           duration_minutes?: number
           exam_code?: string
           id?: string
           pdf_content?: string | null
           questions?: Json | null
+          teacher_id?: string | null
           title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "exams_teacher_id_fkey"
+            columns: ["teacher_id"]
+            isOneToOne: false
+            referencedRelation: "teachers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      teachers: {
+        Row: {
+          created_at: string
+          email: string | null
+          id: string
+          name: string
+          password_hash: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          email?: string | null
+          id?: string
+          name: string
+          password_hash: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          email?: string | null
+          id?: string
+          name?: string
+          password_hash?: string
           updated_at?: string
         }
         Relationships: []
