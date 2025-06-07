@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
+import { useAuth } from '@/contexts/AuthContext';
 
 export interface Exam {
   id: string;
@@ -28,15 +29,29 @@ export interface ExamSubmission {
 export const useExams = () => {
   const [exams, setExams] = useState<Exam[]>([]);
   const [loading, setLoading] = useState(true);
+  const { teacher } = useAuth();
 
   const fetchExams = async () => {
+    if (!teacher) {
+      setLoading(false);
+      return;
+    }
+
     try {
+      console.log('Buscando provas para o professor:', teacher.id);
+      
       const { data, error } = await supabase
         .from('exams')
         .select('*')
+        .eq('teacher_id', teacher.id)
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Erro ao carregar provas:', error);
+        throw error;
+      }
+      
+      console.log('Provas carregadas:', data);
       setExams(data || []);
     } catch (error) {
       console.error('Erro ao carregar provas:', error);
@@ -56,34 +71,50 @@ export const useExams = () => {
     duration_minutes: number;
     questions?: any;
   }) => {
+    if (!teacher) {
+      toast({
+        title: "Erro de autenticação",
+        description: "É necessário estar logado para criar provas.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     try {
-      // First generate an exam code using the database function
+      console.log('Criando prova para o professor:', teacher.id);
+      console.log('Dados da prova:', examData);
+      
+      // Primeiro gerar um código de prova usando a função da base de dados
       const { data: codeData, error: codeError } = await supabase
         .rpc('generate_exam_code');
 
-      if (codeError) throw codeError;
+      if (codeError) {
+        console.error('Erro ao gerar código:', codeError);
+        throw codeError;
+      }
 
-      // Get the teacher ID from the teachers table (using Kenan Mendes for now)
-      const { data: teacherData, error: teacherError } = await supabase
-        .from('teachers')
-        .select('id')
-        .eq('email', 'kenan@prorhema.com')
-        .single();
+      console.log('Código gerado:', codeData);
 
-      if (teacherError) throw teacherError;
+      const examToInsert = {
+        ...examData,
+        exam_code: codeData,
+        teacher_id: teacher.id
+      };
+
+      console.log('Inserindo prova:', examToInsert);
 
       const { data, error } = await supabase
         .from('exams')
-        .insert([{
-          ...examData,
-          exam_code: codeData,
-          teacher_id: teacherData.id
-        }])
+        .insert([examToInsert])
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Erro ao inserir prova:', error);
+        throw error;
+      }
 
+      console.log('Prova criada com sucesso:', data);
       setExams(prev => [data, ...prev]);
       
       toast({
@@ -96,7 +127,7 @@ export const useExams = () => {
       console.error('Erro ao criar prova:', error);
       toast({
         title: "Erro ao criar prova",
-        description: "Não foi possível criar a prova.",
+        description: "Não foi possível criar a prova. Verifique os dados e tente novamente.",
         variant: "destructive",
       });
       throw error;
@@ -146,7 +177,7 @@ export const useExams = () => {
 
   useEffect(() => {
     fetchExams();
-  }, []);
+  }, [teacher]);
 
   return {
     exams,

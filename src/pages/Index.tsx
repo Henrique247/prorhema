@@ -3,13 +3,19 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { FileText, Users, BarChart3, Settings } from "lucide-react";
+import { FileText, Users, BarChart3, Settings, LogOut, Monitor } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
 import CriarProva from "@/components/CriarProva";
 import MinhasProvas from "@/components/MinhasProvas";
 import Relatorios from "@/components/Relatorios";
 
 const Index = () => {
   const [activeTab, setActiveTab] = useState("criar");
+  const { teacher, logout } = useAuth();
+
+  const handleLogout = () => {
+    logout();
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-green-50">
@@ -19,21 +25,35 @@ const Index = () => {
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center space-x-3">
               <div className="bg-blue-600 rounded-lg p-2">
-                <FileText className="h-6 w-6 text-white" />
+                <Monitor className="h-6 w-6 text-white" />
               </div>
               <div>
-                <h1 className="text-xl font-bold text-gray-900">ProvaIA</h1>
-                <p className="text-sm text-gray-500">Sistema Inteligente de Provas</p>
+                <h1 className="text-xl font-bold text-gray-900">Pro Rhema</h1>
+                <p className="text-sm text-gray-500">Sistema de Provas Multimédia & Design</p>
+              </div>
+              <div className="hidden md:block bg-blue-50 px-3 py-1 rounded-full">
+                <p className="text-xs text-blue-700 font-medium">Patrocinado pela TechStar</p>
               </div>
             </div>
             <div className="flex items-center space-x-4">
               <div className="text-right">
-                <p className="text-sm font-medium text-gray-900">Professor João</p>
-                <p className="text-xs text-gray-500">Matemática</p>
+                <p className="text-sm font-medium text-gray-900">{teacher?.name}</p>
+                <p className="text-xs text-gray-500">Professor de Design & Multimédia</p>
               </div>
               <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
-                <span className="text-white text-sm font-medium">J</span>
+                <span className="text-white text-sm font-medium">
+                  {teacher?.name?.charAt(0) || 'P'}
+                </span>
               </div>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={handleLogout}
+                className="flex items-center space-x-1"
+              >
+                <LogOut className="h-4 w-4" />
+                <span>Sair</span>
+              </Button>
             </div>
           </div>
         </div>
@@ -47,7 +67,7 @@ const Index = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-blue-100">Provas Criadas</p>
-                  <p className="text-2xl font-bold">12</p>
+                  <p className="text-2xl font-bold">0</p>
                 </div>
                 <FileText className="h-8 w-8 text-blue-200" />
               </div>
@@ -58,8 +78,8 @@ const Index = () => {
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-green-100">Alunos Ativos</p>
-                  <p className="text-2xl font-bold">245</p>
+                  <p className="text-green-100">Alunos Participantes</p>
+                  <p className="text-2xl font-bold">0</p>
                 </div>
                 <Users className="h-8 w-8 text-green-200" />
               </div>
@@ -70,8 +90,8 @@ const Index = () => {
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-purple-100">Taxa de Aprovação</p>
-                  <p className="text-2xl font-bold">87%</p>
+                  <p className="text-purple-100">Taxa de Conclusão</p>
+                  <p className="text-2xl font-bold">0%</p>
                 </div>
                 <BarChart3 className="h-8 w-8 text-purple-200" />
               </div>
@@ -83,7 +103,7 @@ const Index = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-orange-100">Média Geral</p>
-                  <p className="text-2xl font-bold">8.4</p>
+                  <p className="text-2xl font-bold">-</p>
                 </div>
                 <Settings className="h-8 w-8 text-orange-200" />
               </div>
