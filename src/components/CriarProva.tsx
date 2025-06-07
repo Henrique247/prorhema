@@ -1,26 +1,32 @@
+
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Upload, FileText, Clock, Users, Settings, CheckCircle } from "lucide-react";
+import { Upload, FileText, Clock, Settings, CheckCircle, Plus, Trash } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { useExams } from "@/hooks/useExams";
+
+interface Questao {
+  id: number;
+  tipo: string;
+  pergunta: string;
+  opcoes?: string[];
+  resposta_correta?: string | number;
+}
 
 const CriarProva = () => {
   const [step, setStep] = useState(1);
   const [createdExam, setCreatedExam] = useState<any>(null);
   const { createExam } = useExams();
+  const [questoes, setQuestoes] = useState<Questao[]>([]);
   const [formData, setFormData] = useState({
     titulo: "",
-    disciplina: "",
     descricao: "",
     arquivo: null as File | null,
-    paginasInicio: "",
-    paginasFim: "",
     numeroQuestoes: "",
     tiposQuestoes: [] as string[],
     tempoProva: "",
@@ -46,49 +52,56 @@ const CriarProva = () => {
     }
   };
 
-  const handleTipoQuestaoChange = (tipo: string, checked: boolean) => {
-    if (checked) {
-      setFormData({
-        ...formData,
-        tiposQuestoes: [...formData.tiposQuestoes, tipo]
-      });
-    } else {
-      setFormData({
-        ...formData,
-        tiposQuestoes: formData.tiposQuestoes.filter(t => t !== tipo)
-      });
-    }
+  const adicionarQuestao = () => {
+    const novaQuestao: Questao = {
+      id: questoes.length + 1,
+      tipo: "multipla-escolha",
+      pergunta: "",
+      opcoes: ["", "", "", ""],
+      resposta_correta: 0
+    };
+    setQuestoes([...questoes, novaQuestao]);
+  };
+
+  const removerQuestao = (id: number) => {
+    setQuestoes(questoes.filter(q => q.id !== id));
+  };
+
+  const atualizarQuestao = (id: number, campo: string, valor: any) => {
+    setQuestoes(questoes.map(q => 
+      q.id === id ? { ...q, [campo]: valor } : q
+    ));
+  };
+
+  const atualizarOpcao = (questaoId: number, opcaoIndex: number, valor: string) => {
+    setQuestoes(questoes.map(q => 
+      q.id === questaoId 
+        ? { ...q, opcoes: q.opcoes?.map((op, idx) => idx === opcaoIndex ? valor : op) }
+        : q
+    ));
   };
 
   const handleGerarProva = async () => {
+    if (questoes.length === 0) {
+      toast({
+        title: "Erro",
+        description: "Adicione pelo menos uma questão à prova.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     toast({
-      title: "Gerando prova...",
-      description: "A IA está analisando o PDF e gerando as questões.",
+      title: "Criando prova...",
+      description: "A prova está sendo criada com suas questões.",
     });
     
     try {
-      // Simular processamento do PDF e gerar questões de exemplo
-      const questoesMock = [
-        {
-          id: 1,
-          tipo: "multipla-escolha",
-          pergunta: "Qual é a capital do Brasil?",
-          opcoes: ["São Paulo", "Rio de Janeiro", "Brasília", "Salvador"],
-          correta: 2
-        },
-        {
-          id: 2,
-          tipo: "verdadeiro-falso",
-          pergunta: "O Brasil é o maior país da América do Sul.",
-          correta: true
-        }
-      ];
-
       const examData = {
         title: formData.titulo,
         pdf_content: formData.arquivo ? "PDF content processed" : undefined,
         duration_minutes: parseInt(formData.tempoProva),
-        questions: questoesMock
+        questions: questoes
       };
 
       const exam = await createExam(examData);
@@ -116,28 +129,21 @@ const CriarProva = () => {
             <Label htmlFor="titulo">Título da Prova</Label>
             <Input
               id="titulo"
-              placeholder="Ex: Prova de Matemática - Álgebra"
+              placeholder="Ex: Prova de Design Gráfico - Identidade Visual"
               value={formData.titulo}
               onChange={(e) => setFormData({ ...formData, titulo: e.target.value })}
             />
           </div>
           <div>
-            <Label htmlFor="disciplina">Disciplina</Label>
-            <Select onValueChange={(value) => setFormData({ ...formData, disciplina: value })}>
-              <SelectTrigger>
-                <SelectValue placeholder="Selecione a disciplina" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="matematica">Matemática</SelectItem>
-                <SelectItem value="portugues">Português</SelectItem>
-                <SelectItem value="historia">História</SelectItem>
-                <SelectItem value="geografia">Geografia</SelectItem>
-                <SelectItem value="ciencias">Ciências</SelectItem>
-                <SelectItem value="fisica">Física</SelectItem>
-                <SelectItem value="quimica">Química</SelectItem>
-                <SelectItem value="biologia">Biologia</SelectItem>
-              </SelectContent>
-            </Select>
+            <Label>Disciplina</Label>
+            <Input
+              value="Multimédia e Design"
+              disabled
+              className="bg-gray-100"
+            />
+            <p className="text-xs text-gray-500 mt-1">
+              Disciplina fixa para este sistema
+            </p>
           </div>
         </div>
         
@@ -167,9 +173,9 @@ const CriarProva = () => {
         <Button 
           onClick={() => setStep(2)} 
           className="w-full"
-          disabled={!formData.titulo || !formData.disciplina}
+          disabled={!formData.titulo}
         >
-          Próximo: Upload do Material
+          Próximo: Configurações da Prova
         </Button>
       </CardContent>
     </Card>
@@ -179,113 +185,15 @@ const CriarProva = () => {
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center space-x-2">
-          <Upload className="h-5 w-5" />
-          <span>Upload do Material de Estudo</span>
-        </CardTitle>
-        <CardDescription>
-          Faça upload do PDF que será usado para gerar as questões
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-blue-400 transition-colors">
-          <Upload className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-          <div className="space-y-2">
-            <p className="text-lg font-medium">Clique para fazer upload do PDF</p>
-            <p className="text-sm text-gray-500">ou arraste e solte o arquivo aqui</p>
-            <input
-              type="file"
-              accept=".pdf"
-              onChange={handleFileUpload}
-              className="hidden"
-              id="file-upload"
-            />
-            <label htmlFor="file-upload">
-              <Button variant="outline" className="mt-2" asChild>
-                <span>Selecionar Arquivo PDF</span>
-              </Button>
-            </label>
-          </div>
-        </div>
-
-        {formData.arquivo && (
-          <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-            <div className="flex items-center space-x-3">
-              <FileText className="h-5 w-5 text-green-600" />
-              <div>
-                <p className="font-medium text-green-800">{formData.arquivo.name}</p>
-                <p className="text-sm text-green-600">
-                  {(formData.arquivo.size / 1024 / 1024).toFixed(2)} MB
-                </p>
-              </div>
-            </div>
-          </div>
-        )}
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <Label htmlFor="paginas-inicio">Página Inicial</Label>
-            <Input
-              id="paginas-inicio"
-              type="number"
-              placeholder="Ex: 1"
-              value={formData.paginasInicio}
-              onChange={(e) => setFormData({ ...formData, paginasInicio: e.target.value })}
-            />
-          </div>
-          <div>
-            <Label htmlFor="paginas-fim">Página Final</Label>
-            <Input
-              id="paginas-fim"
-              type="number"
-              placeholder="Ex: 50"
-              value={formData.paginasFim}
-              onChange={(e) => setFormData({ ...formData, paginasFim: e.target.value })}
-            />
-          </div>
-        </div>
-        <p className="text-xs text-gray-500">
-          Defina o intervalo de páginas do PDF que será usado para gerar as questões
-        </p>
-
-        <div className="flex space-x-2">
-          <Button variant="outline" onClick={() => setStep(1)}>
-            Voltar
-          </Button>
-          <Button 
-            onClick={() => setStep(3)} 
-            className="flex-1"
-            disabled={!formData.arquivo}
-          >
-            Próximo: Configurações da Prova
-          </Button>
-        </div>
-      </CardContent>
-    </Card>
-  );
-
-  const renderStep3 = () => (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center space-x-2">
           <Settings className="h-5 w-5" />
           <span>Configurações da Prova</span>
         </CardTitle>
         <CardDescription>
-          Configure como será a prova dos seus alunos
+          Configure o tempo e as opções de segurança
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <Label htmlFor="numero-questoes">Número de Questões</Label>
-            <Input
-              id="numero-questoes"
-              type="number"
-              placeholder="Ex: 20"
-              value={formData.numeroQuestoes}
-              onChange={(e) => setFormData({ ...formData, numeroQuestoes: e.target.value })}
-            />
-          </div>
           <div>
             <Label htmlFor="tempo-prova">Tempo da Prova (minutos)</Label>
             <Input
@@ -295,30 +203,6 @@ const CriarProva = () => {
               value={formData.tempoProva}
               onChange={(e) => setFormData({ ...formData, tempoProva: e.target.value })}
             />
-          </div>
-        </div>
-
-        <div>
-          <Label className="text-base font-medium">Tipos de Questões</Label>
-          <p className="text-sm text-gray-500 mb-3">Selecione os tipos de questões que deseja gerar</p>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {[
-              { id: "multipla-escolha", label: "Múltipla Escolha" },
-              { id: "verdadeiro-falso", label: "Verdadeiro ou Falso" },
-              { id: "abertas", label: "Questões Abertas" },
-              { id: "lacunas", label: "Preencher Lacunas" }
-            ].map((tipo) => (
-              <div key={tipo.id} className="flex items-center space-x-2">
-                <Checkbox
-                  id={tipo.id}
-                  checked={formData.tiposQuestoes.includes(tipo.id)}
-                  onCheckedChange={(checked) => 
-                    handleTipoQuestaoChange(tipo.id, checked as boolean)
-                  }
-                />
-                <Label htmlFor={tipo.id}>{tipo.label}</Label>
-              </div>
-            ))}
           </div>
         </div>
 
@@ -353,15 +237,115 @@ const CriarProva = () => {
         </div>
 
         <div className="flex space-x-2">
+          <Button variant="outline" onClick={() => setStep(1)}>
+            Voltar
+          </Button>
+          <Button 
+            onClick={() => setStep(3)} 
+            className="flex-1"
+            disabled={!formData.tempoProva}
+          >
+            Próximo: Criar Questões
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+
+  const renderStep3 = () => (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center space-x-2">
+          <Plus className="h-5 w-5" />
+          <span>Criar Questões da Prova</span>
+        </CardTitle>
+        <CardDescription>
+          Adicione as questões que os alunos deverão responder
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-6">
+        <div className="flex justify-between items-center">
+          <h3 className="font-medium">Questões ({questoes.length})</h3>
+          <Button onClick={adicionarQuestao} size="sm">
+            <Plus className="h-4 w-4 mr-2" />
+            Adicionar Questão
+          </Button>
+        </div>
+
+        <div className="space-y-4 max-h-96 overflow-y-auto">
+          {questoes.map((questao, index) => (
+            <Card key={questao.id} className="p-4">
+              <div className="space-y-3">
+                <div className="flex justify-between items-center">
+                  <h4 className="font-medium">Questão {index + 1}</h4>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => removerQuestao(questao.id)}
+                    className="text-red-600 hover:text-red-700"
+                  >
+                    <Trash className="h-4 w-4" />
+                  </Button>
+                </div>
+                
+                <div>
+                  <Label>Pergunta</Label>
+                  <Textarea
+                    value={questao.pergunta}
+                    onChange={(e) => atualizarQuestao(questao.id, 'pergunta', e.target.value)}
+                    placeholder="Digite a pergunta aqui..."
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  {questao.opcoes?.map((opcao, opcaoIndex) => (
+                    <div key={opcaoIndex}>
+                      <Label>Opção {String.fromCharCode(65 + opcaoIndex)}</Label>
+                      <Input
+                        value={opcao}
+                        onChange={(e) => atualizarOpcao(questao.id, opcaoIndex, e.target.value)}
+                        placeholder={`Opção ${String.fromCharCode(65 + opcaoIndex)}`}
+                      />
+                    </div>
+                  ))}
+                </div>
+
+                <div>
+                  <Label>Resposta Correta</Label>
+                  <select
+                    className="w-full p-2 border rounded"
+                    value={questao.resposta_correta}
+                    onChange={(e) => atualizarQuestao(questao.id, 'resposta_correta', parseInt(e.target.value))}
+                  >
+                    <option value={0}>Opção A</option>
+                    <option value={1}>Opção B</option>
+                    <option value={2}>Opção C</option>
+                    <option value={3}>Opção D</option>
+                  </select>
+                </div>
+              </div>
+            </Card>
+          ))}
+        </div>
+
+        {questoes.length === 0 && (
+          <div className="text-center py-8 text-gray-500">
+            <FileText className="h-12 w-12 mx-auto mb-4 text-gray-400" />
+            <p>Nenhuma questão adicionada ainda.</p>
+            <p className="text-sm">Clique em "Adicionar Questão" para começar.</p>
+          </div>
+        )}
+
+        <div className="flex space-x-2">
           <Button variant="outline" onClick={() => setStep(2)}>
             Voltar
           </Button>
           <Button 
             onClick={handleGerarProva} 
             className="flex-1"
-            disabled={!formData.numeroQuestoes || !formData.tempoProva || formData.tiposQuestoes.length === 0}
+            disabled={questoes.length === 0}
           >
-            Gerar Prova com IA
+            Criar Prova
           </Button>
         </div>
       </CardContent>
@@ -376,7 +360,7 @@ const CriarProva = () => {
           <span>Prova Criada com Sucesso!</span>
         </CardTitle>
         <CardDescription>
-          Sua prova foi gerada e está pronta para ser compartilhada com os alunos
+          Sua prova foi criada e está pronta para ser compartilhada com os alunos
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
@@ -416,7 +400,7 @@ const CriarProva = () => {
             </div>
             <div>
               <span className="text-blue-600">Questões:</span>
-              <span className="ml-2">{formData.numeroQuestoes}</span>
+              <span className="ml-2">{questoes.length}</span>
             </div>
             <div>
               <span className="text-blue-600">Tempo:</span>
@@ -431,13 +415,11 @@ const CriarProva = () => {
             onClick={() => {
               setStep(1);
               setCreatedExam(null);
+              setQuestoes([]);
               setFormData({
                 titulo: "",
-                disciplina: "",
                 descricao: "",
                 arquivo: null,
-                paginasInicio: "",
-                paginasFim: "",
                 numeroQuestoes: "",
                 tiposQuestoes: [],
                 tempoProva: "",
@@ -467,8 +449,8 @@ const CriarProva = () => {
           </span>
           <span className="text-sm text-gray-500">
             {step === 1 && "Informações Básicas"}
-            {step === 2 && "Upload do Material"}
-            {step === 3 && "Configurações"}
+            {step === 2 && "Configurações"}
+            {step === 3 && "Criar Questões"}
             {step === 4 && "Prova Criada"}
           </span>
         </div>

@@ -1,17 +1,74 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { FileText, Users, BarChart3, Settings, LogOut, Monitor } from "lucide-react";
+import { FileText, Users, BarChart3, Settings, LogOut, Monitor, GraduationCap, ClipboardCheck } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useExams } from "@/hooks/useExams";
+import { supabase } from "@/integrations/supabase/client";
 import CriarProva from "@/components/CriarProva";
 import MinhasProvas from "@/components/MinhasProvas";
 import Relatorios from "@/components/Relatorios";
+import RevisarProvas from "@/components/RevisarProvas";
+import Pauta from "@/components/Pauta";
 
 const Index = () => {
   const [activeTab, setActiveTab] = useState("criar");
   const { teacher, logout } = useAuth();
+  const { exams } = useExams();
+  const [stats, setStats] = useState({
+    totalProvas: 0,
+    totalAlunos: 0,
+    taxaConclusao: 0,
+    mediaGeral: 0
+  });
+
+  const fetchStats = async () => {
+    if (!teacher || !exams.length) return;
+
+    try {
+      // Buscar estatísticas reais
+      let totalSubmissions = 0;
+      let totalScores = 0;
+      let completedExams = 0;
+      const uniqueStudents = new Set();
+
+      for (const exam of exams) {
+        const { data: submissions } = await supabase
+          .from('exam_submissions')
+          .select('score, student_name')
+          .eq('exam_id', exam.id);
+
+        if (submissions) {
+          submissions.forEach(submission => {
+            uniqueStudents.add(submission.student_name);
+            if (submission.score > 0) {
+              totalSubmissions++;
+              totalScores += submission.score;
+              completedExams++;
+            }
+          });
+        }
+      }
+
+      const mediaGeral = totalSubmissions > 0 ? totalScores / totalSubmissions : 0;
+      const taxaConclusao = exams.length > 0 ? (completedExams / (exams.length * uniqueStudents.size || 1)) * 100 : 0;
+
+      setStats({
+        totalProvas: exams.length,
+        totalAlunos: uniqueStudents.size,
+        taxaConclusao: Math.round(taxaConclusao),
+        mediaGeral: Number(mediaGeral.toFixed(1))
+      });
+    } catch (error) {
+      console.error('Erro ao carregar estatísticas:', error);
+    }
+  };
+
+  useEffect(() => {
+    fetchStats();
+  }, [teacher, exams]);
 
   const handleLogout = () => {
     logout();
@@ -67,7 +124,7 @@ const Index = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-blue-100">Provas Criadas</p>
-                  <p className="text-2xl font-bold">0</p>
+                  <p className="text-2xl font-bold">{stats.totalProvas}</p>
                 </div>
                 <FileText className="h-8 w-8 text-blue-200" />
               </div>
@@ -79,7 +136,7 @@ const Index = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-green-100">Alunos Participantes</p>
-                  <p className="text-2xl font-bold">0</p>
+                  <p className="text-2xl font-bold">{stats.totalAlunos}</p>
                 </div>
                 <Users className="h-8 w-8 text-green-200" />
               </div>
@@ -91,7 +148,7 @@ const Index = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-purple-100">Taxa de Conclusão</p>
-                  <p className="text-2xl font-bold">0%</p>
+                  <p className="text-2xl font-bold">{stats.taxaConclusao}%</p>
                 </div>
                 <BarChart3 className="h-8 w-8 text-purple-200" />
               </div>
@@ -103,7 +160,9 @@ const Index = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-orange-100">Média Geral</p>
-                  <p className="text-2xl font-bold">-</p>
+                  <p className="text-2xl font-bold">
+                    {stats.mediaGeral > 0 ? stats.mediaGeral : '-'}
+                  </p>
                 </div>
                 <Settings className="h-8 w-8 text-orange-200" />
               </div>
@@ -113,7 +172,7 @@ const Index = () => {
 
         {/* Main Content */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-5">
             <TabsTrigger value="criar" className="flex items-center space-x-2">
               <FileText className="h-4 w-4" />
               <span>Criar Prova</span>
@@ -121,6 +180,14 @@ const Index = () => {
             <TabsTrigger value="minhas-provas" className="flex items-center space-x-2">
               <Users className="h-4 w-4" />
               <span>Minhas Provas</span>
+            </TabsTrigger>
+            <TabsTrigger value="revisar" className="flex items-center space-x-2">
+              <ClipboardCheck className="h-4 w-4" />
+              <span>Revisar Provas</span>
+            </TabsTrigger>
+            <TabsTrigger value="pauta" className="flex items-center space-x-2">
+              <GraduationCap className="h-4 w-4" />
+              <span>Pauta</span>
             </TabsTrigger>
             <TabsTrigger value="relatorios" className="flex items-center space-x-2">
               <BarChart3 className="h-4 w-4" />
@@ -134,6 +201,14 @@ const Index = () => {
           
           <TabsContent value="minhas-provas">
             <MinhasProvas />
+          </TabsContent>
+          
+          <TabsContent value="revisar">
+            <RevisarProvas />
+          </TabsContent>
+          
+          <TabsContent value="pauta">
+            <Pauta />
           </TabsContent>
           
           <TabsContent value="relatorios">
