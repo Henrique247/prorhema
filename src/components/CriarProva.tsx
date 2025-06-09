@@ -6,16 +6,18 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Upload, FileText, Clock, Settings, CheckCircle, Plus, Trash } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { useExams } from "@/hooks/useExams";
 
 interface Questao {
   id: number;
-  tipo: string;
+  tipo: "multipla-escolha" | "verdadeiro-falso" | "aberta";
   pergunta: string;
   opcoes?: string[];
-  resposta_correta?: string | number;
+  resposta_correta?: string | number | boolean;
+  pontos: number;
 }
 
 const CriarProva = () => {
@@ -58,7 +60,8 @@ const CriarProva = () => {
       tipo: "multipla-escolha",
       pergunta: "",
       opcoes: ["", "", "", ""],
-      resposta_correta: 0
+      resposta_correta: 0,
+      pontos: 1
     };
     setQuestoes([...questoes, novaQuestao]);
   };
@@ -68,9 +71,32 @@ const CriarProva = () => {
   };
 
   const atualizarQuestao = (id: number, campo: string, valor: any) => {
-    setQuestoes(questoes.map(q => 
-      q.id === id ? { ...q, [campo]: valor } : q
-    ));
+    setQuestoes(questoes.map(q => {
+      if (q.id === id) {
+        const novaQuestao = { ...q, [campo]: valor };
+        
+        // Ajustar estrutura baseada no tipo
+        if (campo === 'tipo') {
+          switch (valor) {
+            case 'multipla-escolha':
+              novaQuestao.opcoes = ["", "", "", ""];
+              novaQuestao.resposta_correta = 0;
+              break;
+            case 'verdadeiro-falso':
+              novaQuestao.opcoes = ["Verdadeiro", "Falso"];
+              novaQuestao.resposta_correta = true;
+              break;
+            case 'aberta':
+              delete novaQuestao.opcoes;
+              novaQuestao.resposta_correta = "";
+              break;
+          }
+        }
+        
+        return novaQuestao;
+      }
+      return q;
+    }));
   };
 
   const atualizarOpcao = (questaoId: number, opcaoIndex: number, valor: string) => {
@@ -91,6 +117,22 @@ const CriarProva = () => {
       return;
     }
 
+    // Validar questões
+    const questoesInvalidas = questoes.filter(q => 
+      !q.pergunta.trim() || 
+      (q.tipo === 'multipla-escolha' && q.opcoes?.some(op => !op.trim())) ||
+      (q.tipo === 'aberta' && !q.resposta_correta)
+    );
+
+    if (questoesInvalidas.length > 0) {
+      toast({
+        title: "Erro de validação",
+        description: "Por favor, preencha todas as questões completamente.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     toast({
       title: "Criando prova...",
       description: "A prova está sendo criada com suas questões.",
@@ -101,7 +143,17 @@ const CriarProva = () => {
         title: formData.titulo,
         pdf_content: formData.arquivo ? "PDF content processed" : undefined,
         duration_minutes: parseInt(formData.tempoProva),
-        questions: questoes
+        questions: questoes,
+        question_types: questoes.map(q => q.tipo),
+        question_details: questoes.reduce((acc, q) => {
+          acc[q.id] = {
+            tipo: q.tipo,
+            pontos: q.pontos,
+            opcoes: q.opcoes,
+            resposta_correta: q.resposta_correta
+          };
+          return acc;
+        }, {} as Record<number, any>)
       };
 
       const exam = await createExam(examData);
@@ -260,7 +312,7 @@ const CriarProva = () => {
           <span>Criar Questões da Prova</span>
         </CardTitle>
         <CardDescription>
-          Adicione as questões que os alunos deverão responder
+          Adicione questões de múltipla escolha, verdadeiro/falso ou abertas
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
@@ -288,6 +340,34 @@ const CriarProva = () => {
                   </Button>
                 </div>
                 
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label>Tipo de Questão</Label>
+                    <Select 
+                      value={questao.tipo} 
+                      onValueChange={(value) => atualizarQuestao(questao.id, 'tipo', value)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="multipla-escolha">Múltipla Escolha</SelectItem>
+                        <SelectItem value="verdadeiro-falso">Verdadeiro/Falso</SelectItem>
+                        <SelectItem value="aberta">Questão Aberta</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label>Pontos</Label>
+                    <Input
+                      type="number"
+                      min="1"
+                      value={questao.pontos}
+                      onChange={(e) => atualizarQuestao(questao.id, 'pontos', parseInt(e.target.value) || 1)}
+                    />
+                  </div>
+                </div>
+                
                 <div>
                   <Label>Pergunta</Label>
                   <Textarea
@@ -297,32 +377,68 @@ const CriarProva = () => {
                   />
                 </div>
 
-                <div className="grid grid-cols-2 gap-2">
-                  {questao.opcoes?.map((opcao, opcaoIndex) => (
-                    <div key={opcaoIndex}>
-                      <Label>Opção {String.fromCharCode(65 + opcaoIndex)}</Label>
-                      <Input
-                        value={opcao}
-                        onChange={(e) => atualizarOpcao(questao.id, opcaoIndex, e.target.value)}
-                        placeholder={`Opção ${String.fromCharCode(65 + opcaoIndex)}`}
-                      />
+                {questao.tipo === 'multipla-escolha' && (
+                  <>
+                    <div className="grid grid-cols-2 gap-2">
+                      {questao.opcoes?.map((opcao, opcaoIndex) => (
+                        <div key={opcaoIndex}>
+                          <Label>Opção {String.fromCharCode(65 + opcaoIndex)}</Label>
+                          <Input
+                            value={opcao}
+                            onChange={(e) => atualizarOpcao(questao.id, opcaoIndex, e.target.value)}
+                            placeholder={`Opção ${String.fromCharCode(65 + opcaoIndex)}`}
+                          />
+                        </div>
+                      ))}
                     </div>
-                  ))}
-                </div>
+                    <div>
+                      <Label>Resposta Correta</Label>
+                      <Select
+                        value={questao.resposta_correta?.toString()}
+                        onValueChange={(value) => atualizarQuestao(questao.id, 'resposta_correta', parseInt(value))}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="0">Opção A</SelectItem>
+                          <SelectItem value="1">Opção B</SelectItem>
+                          <SelectItem value="2">Opção C</SelectItem>
+                          <SelectItem value="3">Opção D</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </>
+                )}
 
-                <div>
-                  <Label>Resposta Correta</Label>
-                  <select
-                    className="w-full p-2 border rounded"
-                    value={questao.resposta_correta}
-                    onChange={(e) => atualizarQuestao(questao.id, 'resposta_correta', parseInt(e.target.value))}
-                  >
-                    <option value={0}>Opção A</option>
-                    <option value={1}>Opção B</option>
-                    <option value={2}>Opção C</option>
-                    <option value={3}>Opção D</option>
-                  </select>
-                </div>
+                {questao.tipo === 'verdadeiro-falso' && (
+                  <div>
+                    <Label>Resposta Correta</Label>
+                    <Select
+                      value={questao.resposta_correta?.toString()}
+                      onValueChange={(value) => atualizarQuestao(questao.id, 'resposta_correta', value === 'true')}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="true">Verdadeiro</SelectItem>
+                        <SelectItem value="false">Falso</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+
+                {questao.tipo === 'aberta' && (
+                  <div>
+                    <Label>Resposta Esperada (para referência)</Label>
+                    <Textarea
+                      value={questao.resposta_correta as string}
+                      onChange={(e) => atualizarQuestao(questao.id, 'resposta_correta', e.target.value)}
+                      placeholder="Digite a resposta esperada ou critérios de avaliação..."
+                    />
+                  </div>
+                )}
               </div>
             </Card>
           ))}

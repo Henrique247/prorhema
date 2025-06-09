@@ -13,27 +13,33 @@ export type Database = {
         Row: {
           answers: Json
           completed_at: string
+          detailed_answers: Json | null
           exam_id: string
           feedback: string | null
           id: string
+          question_responses: Json | null
           score: number
           student_name: string
         }
         Insert: {
           answers: Json
           completed_at?: string
+          detailed_answers?: Json | null
           exam_id: string
           feedback?: string | null
           id?: string
+          question_responses?: Json | null
           score?: number
           student_name: string
         }
         Update: {
           answers?: Json
           completed_at?: string
+          detailed_answers?: Json | null
           exam_id?: string
           feedback?: string | null
           id?: string
+          question_responses?: Json | null
           score?: number
           student_name?: string
         }
@@ -54,6 +60,8 @@ export type Database = {
           exam_code: string
           id: string
           pdf_content: string | null
+          question_details: Json | null
+          question_types: Json | null
           questions: Json | null
           teacher_id: string | null
           title: string
@@ -65,6 +73,8 @@ export type Database = {
           exam_code: string
           id?: string
           pdf_content?: string | null
+          question_details?: Json | null
+          question_types?: Json | null
           questions?: Json | null
           teacher_id?: string | null
           title: string
@@ -76,6 +86,8 @@ export type Database = {
           exam_code?: string
           id?: string
           pdf_content?: string | null
+          question_details?: Json | null
+          question_types?: Json | null
           questions?: Json | null
           teacher_id?: string | null
           title?: string

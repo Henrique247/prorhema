@@ -11,6 +11,8 @@ export interface Exam {
   exam_code: string;
   duration_minutes: number;
   questions?: any;
+  question_types?: any;
+  question_details?: any;
   teacher_id: string;
   created_at: string;
   updated_at: string;
@@ -21,6 +23,8 @@ export interface ExamSubmission {
   exam_id: string;
   student_name: string;
   answers: any;
+  detailed_answers?: any;
+  question_responses?: any;
   feedback?: string;
   score: number;
   completed_at: string;
@@ -70,6 +74,8 @@ export const useExams = () => {
     pdf_content?: string;
     duration_minutes: number;
     questions?: any;
+    question_types?: any;
+    question_details?: any;
   }) => {
     if (!teacher) {
       toast({

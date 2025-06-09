@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { FileText, User, Clock, CheckCircle, X, Save } from "lucide-react";
+import { FileText, User, Clock, CheckCircle, X, Save, Eye } from "lucide-react";
 import { useExams } from "@/hooks/useExams";
 import { useExamSubmissions } from "@/hooks/useExamSubmissions";
 import { toast } from "@/hooks/use-toast";
@@ -15,11 +15,27 @@ import { supabase } from "@/integrations/supabase/client";
 const RevisarProvas = () => {
   const { exams } = useExams();
   const [selectedExam, setSelectedExam] = useState<string>("");
+  const [examDetails, setExamDetails] = useState<any>(null);
   const [submissions, setSubmissions] = useState<any[]>([]);
   const [selectedSubmission, setSelectedSubmission] = useState<any>(null);
   const [nota, setNota] = useState<string>("");
   const [feedback, setFeedback] = useState<string>("");
   const [loading, setLoading] = useState(false);
+
+  const fetchExamDetails = async (examId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('exams')
+        .select('*')
+        .eq('id', examId)
+        .single();
+
+      if (error) throw error;
+      setExamDetails(data);
+    } catch (error) {
+      console.error('Erro ao carregar detalhes da prova:', error);
+    }
+  };
 
   const fetchSubmissions = async (examId: string) => {
     if (!examId) return;
@@ -34,6 +50,9 @@ const RevisarProvas = () => {
 
       if (error) throw error;
       setSubmissions(data || []);
+      
+      // Buscar detalhes da prova
+      await fetchExamDetails(examId);
     } catch (error) {
       console.error('Erro ao carregar submissões:', error);
       toast({
@@ -94,6 +113,114 @@ const RevisarProvas = () => {
     if (score >= 14) return "bg-green-100 text-green-800";
     if (score >= 10) return "bg-yellow-100 text-yellow-800";
     return "bg-red-100 text-red-800";
+  };
+
+  const renderQuestionWithAnswer = (question: any, questionIndex: number, studentAnswer: any) => {
+    const questionId = question.id || questionIndex + 1;
+    const answer = studentAnswer?.[questionId] || studentAnswer?.[questionIndex];
+
+    return (
+      <div key={questionId} className="border rounded-lg p-4 space-y-3">
+        <div className="flex justify-between items-start">
+          <h4 className="font-medium text-gray-900">
+            Questão {questionIndex + 1} ({question.pontos || 1} ponto{(question.pontos || 1) > 1 ? 's' : ''})
+          </h4>
+          <Badge variant="outline" className="text-xs">
+            {question.tipo === 'multipla-escolha' ? 'Múltipla Escolha' : 
+             question.tipo === 'verdadeiro-falso' ? 'V/F' : 'Aberta'}
+          </Badge>
+        </div>
+        
+        <div className="bg-blue-50 p-3 rounded">
+          <p className="text-blue-800 font-medium mb-2">Pergunta:</p>
+          <p className="text-blue-700">{question.pergunta}</p>
+        </div>
+
+        {question.tipo === 'multipla-escolha' && question.opcoes && (
+          <div className="space-y-2">
+            <p className="font-medium text-gray-700">Opções:</p>
+            {question.opcoes.map((opcao: string, opcaoIndex: number) => (
+              <div 
+                key={opcaoIndex} 
+                className={`p-2 rounded border ${
+                  question.resposta_correta === opcaoIndex 
+                    ? 'bg-green-50 border-green-200' 
+                    : answer === opcaoIndex 
+                      ? 'bg-red-50 border-red-200' 
+                      : 'bg-gray-50 border-gray-200'
+                }`}
+              >
+                <span className="font-medium">
+                  {String.fromCharCode(65 + opcaoIndex)}) 
+                </span>
+                <span className="ml-2">{opcao}</span>
+                {question.resposta_correta === opcaoIndex && (
+                  <Badge className="ml-2 bg-green-600">Correta</Badge>
+                )}
+                {answer === opcaoIndex && answer !== question.resposta_correta && (
+                  <Badge variant="destructive" className="ml-2">Selecionada</Badge>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+
+        {question.tipo === 'verdadeiro-falso' && (
+          <div className="space-y-2">
+            <p className="font-medium text-gray-700">Opções:</p>
+            <div className={`p-2 rounded border ${
+              question.resposta_correta === true 
+                ? 'bg-green-50 border-green-200' 
+                : answer === true 
+                  ? 'bg-red-50 border-red-200' 
+                  : 'bg-gray-50 border-gray-200'
+            }`}>
+              Verdadeiro
+              {question.resposta_correta === true && (
+                <Badge className="ml-2 bg-green-600">Correta</Badge>
+              )}
+              {answer === true && answer !== question.resposta_correta && (
+                <Badge variant="destructive" className="ml-2">Selecionada</Badge>
+              )}
+            </div>
+            <div className={`p-2 rounded border ${
+              question.resposta_correta === false 
+                ? 'bg-green-50 border-green-200' 
+                : answer === false 
+                  ? 'bg-red-50 border-red-200' 
+                  : 'bg-gray-50 border-gray-200'
+            }`}>
+              Falso
+              {question.resposta_correta === false && (
+                <Badge className="ml-2 bg-green-600">Correta</Badge>
+              )}
+              {answer === false && answer !== question.resposta_correta && (
+                <Badge variant="destructive" className="ml-2">Selecionada</Badge>
+              )}
+            </div>
+          </div>
+        )}
+
+        <div className="bg-yellow-50 p-3 rounded">
+          <p className="text-yellow-800 font-medium mb-2">Resposta do Aluno:</p>
+          <p className="text-yellow-700">
+            {question.tipo === 'aberta' 
+              ? answer || 'Não respondida'
+              : question.tipo === 'multipla-escolha'
+                ? answer !== undefined ? `Opção ${String.fromCharCode(65 + answer)}` : 'Não respondida'
+                : answer !== undefined ? (answer ? 'Verdadeiro' : 'Falso') : 'Não respondida'
+            }
+          </p>
+        </div>
+
+        {question.tipo === 'aberta' && question.resposta_correta && (
+          <div className="bg-green-50 p-3 rounded">
+            <p className="text-green-800 font-medium mb-2">Resposta Esperada:</p>
+            <p className="text-green-700">{question.resposta_correta}</p>
+          </div>
+        )}
+      </div>
+    );
   };
 
   return (
@@ -189,7 +316,7 @@ const RevisarProvas = () => {
           </Card>
 
           {/* Detalhe da Submissão */}
-          {selectedSubmission && (
+          {selectedSubmission && examDetails && (
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -198,18 +325,21 @@ const RevisarProvas = () => {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-6">
-                {/* Respostas do Aluno */}
+                {/* Respostas Detalhadas */}
                 <div>
-                  <h4 className="font-medium mb-3">Respostas do Aluno:</h4>
-                  <div className="bg-gray-50 p-4 rounded-lg max-h-64 overflow-y-auto">
-                    <pre className="text-sm whitespace-pre-wrap">
-                      {JSON.stringify(selectedSubmission.answers, null, 2)}
-                    </pre>
+                  <h4 className="font-medium mb-4 flex items-center gap-2">
+                    <Eye className="h-4 w-4" />
+                    Respostas Detalhadas:
+                  </h4>
+                  <div className="space-y-4 max-h-64 overflow-y-auto">
+                    {examDetails.questions?.map((question: any, index: number) => 
+                      renderQuestionWithAnswer(question, index, selectedSubmission.answers)
+                    )}
                   </div>
                 </div>
 
                 {/* Atribuir Nota */}
-                <div className="space-y-4">
+                <div className="space-y-4 border-t pt-4">
                   <div>
                     <label className="block text-sm font-medium mb-2">
                       Nota (0-20):
