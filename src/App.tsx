@@ -8,6 +8,8 @@ import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import Index from "./pages/Index";
 import ProvaAluno from "./pages/ProvaAluno";
 import PortalAluno from "./pages/PortalAluno";
+import LoginEstudante from "./pages/LoginEstudante";
+import DashboardEstudante from "./pages/DashboardEstudante";
 import NotFound from "./pages/NotFound";
 import LoginForm from "./components/LoginForm";
 
@@ -24,16 +26,22 @@ const AppContent = () => {
     );
   }
 
-  if (!teacher) {
-    return <LoginForm />;
-  }
-
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/" element={<Index />} />
-        <Route path="/prova/:id" element={<ProvaAluno />} />
+        {/* Rotas públicas */}
+        <Route path="/login-estudante" element={<LoginEstudante />} />
+        <Route path="/dashboard-estudante" element={<DashboardEstudante />} />
         <Route path="/portal-aluno" element={<PortalAluno />} />
+        <Route path="/prova/:id" element={<ProvaAluno />} />
+        
+        {/* Rotas do professor */}
+        {teacher ? (
+          <Route path="/" element={<Index />} />
+        ) : (
+          <Route path="/" element={<LoginForm />} />
+        )}
+        
         <Route path="*" element={<NotFound />} />
       </Routes>
     </BrowserRouter>
