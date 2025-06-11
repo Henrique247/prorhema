@@ -1,9 +1,8 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { FileText, Users, BarChart3, Settings, LogOut, Monitor, GraduationCap, ClipboardCheck, Menu } from "lucide-react";
+import { FileText, Users, BarChart3, Settings, LogOut, Monitor, GraduationCap, ClipboardCheck, Menu, UserCheck } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useExams } from "@/hooks/useExams";
 import { supabase } from "@/integrations/supabase/client";
@@ -12,6 +11,7 @@ import MinhasProvas from "@/components/MinhasProvas";
 import Relatorios from "@/components/Relatorios";
 import RevisarProvas from "@/components/RevisarProvas";
 import Pauta from "@/components/Pauta";
+import GerirTurmas from "@/components/GerirTurmas";
 
 const Index = () => {
   const [activeTab, setActiveTab] = useState("criar");
@@ -78,6 +78,7 @@ const Index = () => {
   const tabs = [
     { value: "criar", label: "Criar Prova", icon: FileText },
     { value: "minhas-provas", label: "Minhas Provas", icon: Users },
+    { value: "gerir-turmas", label: "Gerir Turmas", icon: UserCheck },
     { value: "revisar", label: "Revisar Provas", icon: ClipboardCheck },
     { value: "pauta", label: "Pauta", icon: GraduationCap },
     { value: "relatorios", label: "Relatórios", icon: BarChart3 },
@@ -212,7 +213,7 @@ const Index = () => {
         {/* Main Content */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4 md:space-y-6">
           {/* Desktop Tabs */}
-          <TabsList className="hidden md:grid w-full grid-cols-5">
+          <TabsList className="hidden md:grid w-full grid-cols-6">
             {tabs.map((tab) => (
               <TabsTrigger key={tab.value} value={tab.value} className="flex items-center space-x-2">
                 <tab.icon className="h-4 w-4" />
@@ -245,6 +246,10 @@ const Index = () => {
           
           <TabsContent value="minhas-provas">
             <MinhasProvas />
+          </TabsContent>
+          
+          <TabsContent value="gerir-turmas">
+            <GerirTurmas />
           </TabsContent>
           
           <TabsContent value="revisar">

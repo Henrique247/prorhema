@@ -7,6 +7,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import Index from "./pages/Index";
 import ProvaAluno from "./pages/ProvaAluno";
+import PortalAluno from "./pages/PortalAluno";
 import NotFound from "./pages/NotFound";
 import LoginForm from "./components/LoginForm";
 
@@ -32,6 +33,7 @@ const AppContent = () => {
       <Routes>
         <Route path="/" element={<Index />} />
         <Route path="/prova/:id" element={<ProvaAluno />} />
+        <Route path="/portal-aluno" element={<PortalAluno />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </BrowserRouter>
