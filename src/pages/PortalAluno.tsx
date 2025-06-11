@@ -38,6 +38,7 @@ const PortalAluno = () => {
   const [studentGrades, setStudentGrades] = useState<StudentGrade[]>([]);
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState("exams");
+  const [examLink, setExamLink] = useState("");
 
   const searchStudent = async () => {
     if (!studentName.trim()) {
@@ -89,7 +90,7 @@ const PortalAluno = () => {
       if (examsError) throw examsError;
       setAvailableExams(exams || []);
 
-      // Buscar notas do aluno
+      // Buscar notas do aluno - corrigindo o tipo
       const { data: grades, error: gradesError } = await supabase
         .from('exam_submissions')
         .select(`
@@ -97,7 +98,7 @@ const PortalAluno = () => {
           score,
           feedback,
           completed_at,
-          exams (
+          exams!inner (
             title,
             exam_code
           )
@@ -106,7 +107,20 @@ const PortalAluno = () => {
         .order('completed_at', { ascending: false });
 
       if (gradesError) throw gradesError;
-      setStudentGrades(grades || []);
+      
+      // Transformar os dados para o formato correto
+      const transformedGrades: StudentGrade[] = (grades || []).map(grade => ({
+        id: grade.id,
+        score: grade.score,
+        feedback: grade.feedback,
+        completed_at: grade.completed_at,
+        exam: {
+          title: grade.exams.title,
+          exam_code: grade.exams.exam_code
+        }
+      }));
+      
+      setStudentGrades(transformedGrades);
 
       toast({
         title: "Bem-vindo ao Portal do Aluno!",
@@ -144,6 +158,31 @@ const PortalAluno = () => {
 
   const openExam = (examCode: string) => {
     window.open(`/prova/${examCode}`, '_blank');
+  };
+
+  const openExamFromLink = () => {
+    if (!examLink.trim()) {
+      toast({
+        title: "Link necessário",
+        description: "Por favor, insira o link da prova.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Extrair código da prova do link
+    const linkParts = examLink.split('/');
+    const examCode = linkParts[linkParts.length - 1];
+    
+    if (examCode) {
+      window.open(`/prova/${examCode}`, '_blank');
+    } else {
+      toast({
+        title: "Link inválido",
+        description: "O link da prova não é válido.",
+        variant: "destructive",
+      });
+    }
   };
 
   return (
@@ -268,10 +307,14 @@ const PortalAluno = () => {
 
             {/* Tabs */}
             <Tabs value={activeTab} onValueChange={setActiveTab}>
-              <TabsList className="grid w-full grid-cols-2">
+              <TabsList className="grid w-full grid-cols-3">
                 <TabsTrigger value="exams" className="flex items-center gap-2">
                   <BookOpen className="h-4 w-4" />
                   Provas Disponíveis
+                </TabsTrigger>
+                <TabsTrigger value="link" className="flex items-center gap-2">
+                  <FileText className="h-4 w-4" />
+                  Link da Prova
                 </TabsTrigger>
                 <TabsTrigger value="grades" className="flex items-center gap-2">
                   <Award className="h-4 w-4" />
@@ -327,6 +370,35 @@ const PortalAluno = () => {
                         ))}
                       </div>
                     )}
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
+              <TabsContent value="link" className="space-y-4">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Acesso por Link da Prova</CardTitle>
+                    <CardDescription>
+                      Cole aqui o link da prova fornecido pelo professor
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div>
+                      <Input
+                        placeholder="Cole o link da prova aqui..."
+                        value={examLink}
+                        onChange={(e) => setExamLink(e.target.value)}
+                        className="text-center"
+                      />
+                    </div>
+                    <Button 
+                      onClick={openExamFromLink}
+                      disabled={!examLink.trim()}
+                      className="w-full"
+                    >
+                      <Eye className="h-4 w-4 mr-2" />
+                      Abrir Prova
+                    </Button>
                   </CardContent>
                 </Card>
               </TabsContent>

@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { LogIn, BookOpen, Monitor } from "lucide-react";
+import { LogIn, BookOpen, Monitor, GraduationCap } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 
 const LoginForm = () => {
@@ -26,6 +26,10 @@ const LoginForm = () => {
     setIsLoading(false);
   };
 
+  const goToStudentPortal = () => {
+    window.location.href = '/portal-aluno';
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-green-50 flex items-center justify-center p-4">
       <div className="w-full max-w-md space-y-6">
@@ -44,6 +48,30 @@ const LoginForm = () => {
             <p className="text-xs text-gray-700 font-medium">Patrocinado pela TechStar</p>
           </div>
         </div>
+
+        {/* Student Portal Button */}
+        <Card className="shadow-xl border-0 bg-green-500/10 backdrop-blur-sm border-green-200">
+          <CardContent className="p-6">
+            <div className="text-center space-y-3">
+              <div className="flex justify-center">
+                <div className="bg-green-600 rounded-lg p-3">
+                  <GraduationCap className="h-8 w-8 text-white" />
+                </div>
+              </div>
+              <h3 className="font-bold text-green-800">Portal do Aluno</h3>
+              <p className="text-sm text-green-700">
+                Acesse suas notas, realize provas e veja seu histórico acadêmico
+              </p>
+              <Button 
+                onClick={goToStudentPortal}
+                className="w-full bg-green-600 hover:bg-green-700 text-white"
+              >
+                <GraduationCap className="h-4 w-4 mr-2" />
+                Entrar como Aluno
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Login Card */}
         <Card className="shadow-xl border-0 bg-white/95 backdrop-blur-sm">

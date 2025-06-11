@@ -111,7 +111,10 @@ export const useClasses = () => {
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Erro detalhado ao criar turma:', error);
+        throw error;
+      }
 
       console.log('Turma criada com sucesso:', data);
       setClasses(prev => [data, ...prev]);
@@ -126,7 +129,7 @@ export const useClasses = () => {
       console.error('Erro ao criar turma:', error);
       toast({
         title: "Erro ao criar turma",
-        description: "Não foi possível criar a turma.",
+        description: "Não foi possível criar a turma. Verifique os dados e tente novamente.",
         variant: "destructive",
       });
       throw error;
@@ -140,14 +143,20 @@ export const useClasses = () => {
     class_id: string;
   }) => {
     try {
+      console.log('Adicionando aluno:', studentData);
+      
       const { data, error } = await supabase
         .from('students')
         .insert([studentData])
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Erro detalhado ao adicionar aluno:', error);
+        throw error;
+      }
 
+      console.log('Aluno adicionado com sucesso:', data);
       setStudents(prev => [...prev, data]);
       
       toast({
@@ -160,7 +169,7 @@ export const useClasses = () => {
       console.error('Erro ao adicionar aluno:', error);
       toast({
         title: "Erro ao adicionar aluno",
-        description: "Não foi possível adicionar o aluno.",
+        description: "Não foi possível adicionar o aluno. Verifique os dados e tente novamente.",
         variant: "destructive",
       });
       throw error;
