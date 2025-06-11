@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -19,7 +18,7 @@ const ProvaAluno = () => {
   const { submitExam } = useExamSubmissions();
   const [exam, setExam] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [step, setStep] = useState("identificacao"); // identificacao, prova, finalizada
+  const [step, setStep] = useState("identificacao");
   const [nomeAluno, setNomeAluno] = useState("");
   const [tempoRestante, setTempoRestante] = useState(3600);
   const [questaoAtual, setQuestaoAtual] = useState(0);
@@ -27,6 +26,7 @@ const ProvaAluno = () => {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [tentativasCola, setTentativasCola] = useState(0);
   const [isMobile, setIsMobile] = useState(false);
+  const [examFinalized, setExamFinalized] = useState(false);
 
   // Detectar se é mobile
   useEffect(() => {
@@ -53,7 +53,7 @@ const ProvaAluno = () => {
         } else {
           toast({
             title: "Prova não encontrada",
-            description: "O código da prova não é válido.",
+            description: "O código da prova não é válido ou a prova não está ativa.",
             variant: "destructive",
           });
         }
@@ -74,7 +74,7 @@ const ProvaAluno = () => {
 
   // Timer da prova
   useEffect(() => {
-    if (step === "prova" && tempoRestante > 0) {
+    if (step === "prova" && tempoRestante > 0 && !examFinalized) {
       const timer = setInterval(() => {
         setTempoRestante(prev => {
           if (prev <= 1) {
@@ -86,16 +86,16 @@ const ProvaAluno = () => {
       }, 1000);
       return () => clearInterval(timer);
     }
-  }, [step, tempoRestante]);
+  }, [step, tempoRestante, examFinalized]);
 
   // Sistema anti-cola RIGOROSO
   useEffect(() => {
-    if (step === "prova") {
+    if (step === "prova" && !examFinalized) {
       const handleFullscreenChange = () => {
         const isCurrentlyFullscreen = !!document.fullscreenElement;
         setIsFullscreen(isCurrentlyFullscreen);
         
-        if (!isCurrentlyFullscreen && step === "prova") {
+        if (!isCurrentlyFullscreen && step === "prova" && !isMobile && !examFinalized) {
           toast({
             title: "PROVA FINALIZADA!",
             description: "Você saiu da tela cheia. A prova foi encerrada automaticamente.",
@@ -106,7 +106,7 @@ const ProvaAluno = () => {
       };
 
       const handleVisibilityChange = () => {
-        if (document.hidden && step === "prova") {
+        if (document.hidden && step === "prova" && !examFinalized) {
           toast({
             title: "PROVA FINALIZADA!",
             description: "Você trocou de aba. A prova foi encerrada automaticamente.",
@@ -117,7 +117,7 @@ const ProvaAluno = () => {
       };
 
       const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-        if (step === "prova") {
+        if (step === "prova" && !examFinalized) {
           e.preventDefault();
           e.returnValue = 'Você tem certeza que deseja sair? A prova será finalizada automaticamente.';
           setTimeout(() => finalizarProva(), 100);
@@ -126,8 +126,7 @@ const ProvaAluno = () => {
       };
 
       const handleKeyDown = (e: KeyboardEvent) => {
-        // Bloquear teclas que podem ser usadas para trapacear
-        if (step === "prova" && (
+        if (step === "prova" && !examFinalized && (
           e.key === 'F12' || 
           (e.ctrlKey && e.shiftKey && e.key === 'I') ||
           (e.ctrlKey && e.shiftKey && e.key === 'J') ||
@@ -144,8 +143,21 @@ const ProvaAluno = () => {
         }
       };
 
+      // Detectar troca de aplicativo no mobile
+      const handleAppStateChange = () => {
+        if (document.hidden && isMobile && step === "prova" && !examFinalized) {
+          toast({
+            title: "PROVA FINALIZADA!",
+            description: "Você saiu do aplicativo. A prova foi encerrada automaticamente.",
+            variant: "destructive",
+          });
+          setTimeout(() => finalizarProva(), 1000);
+        }
+      };
+
       document.addEventListener("fullscreenchange", handleFullscreenChange);
       document.addEventListener("visibilitychange", handleVisibilityChange);
+      document.addEventListener("visibilitychange", handleAppStateChange);
       window.addEventListener("beforeunload", handleBeforeUnload);
       document.addEventListener("keydown", handleKeyDown);
 
@@ -157,15 +169,30 @@ const ProvaAluno = () => {
       };
       document.addEventListener("contextmenu", handleContextMenu);
 
+      // Detectar tentativas de pressionar botões do navegador
+      const handlePopState = () => {
+        if (step === "prova" && !examFinalized) {
+          toast({
+            title: "PROVA FINALIZADA!",
+            description: "Tentativa de navegação detectada. A prova foi encerrada.",
+            variant: "destructive",
+          });
+          setTimeout(() => finalizarProva(), 1000);
+        }
+      };
+      window.addEventListener("popstate", handlePopState);
+
       return () => {
         document.removeEventListener("fullscreenchange", handleFullscreenChange);
         document.removeEventListener("visibilitychange", handleVisibilityChange);
+        document.removeEventListener("visibilitychange", handleAppStateChange);
         window.removeEventListener("beforeunload", handleBeforeUnload);
         document.removeEventListener("keydown", handleKeyDown);
         document.removeEventListener("contextmenu", handleContextMenu);
+        window.removeEventListener("popstate", handlePopState);
       };
     }
-  }, [step]);
+  }, [step, isMobile, examFinalized]);
 
   const formatTime = (seconds: number) => {
     const minutes = Math.floor(seconds / 60);
@@ -208,6 +235,10 @@ const ProvaAluno = () => {
   };
 
   const finalizarProva = async () => {
+    if (examFinalized) return;
+    
+    setExamFinalized(true);
+    
     if (document.fullscreenElement) {
       document.exitFullscreen();
     }
@@ -219,6 +250,7 @@ const ProvaAluno = () => {
       setStep("finalizada");
     } catch (error) {
       console.error('Erro ao enviar prova:', error);
+      setStep("finalizada");
     }
   };
 
@@ -318,7 +350,7 @@ const ProvaAluno = () => {
               Prova não encontrada
             </h3>
             <p className="text-gray-500 text-sm">
-              O código da prova não é válido ou a prova não existe.
+              O código da prova não é válido, a prova não existe ou não está mais ativa.
             </p>
           </CardContent>
         </Card>
@@ -353,13 +385,14 @@ const ProvaAluno = () => {
               <div className="flex items-start space-x-2">
                 <AlertTriangle className="h-4 w-4 md:h-5 md:w-5 text-red-600 mt-0.5 flex-shrink-0" />
                 <div className="text-xs md:text-sm text-red-800">
-                  <p className="font-medium mb-1">⚠️ IMPORTANTE - SISTEMA ANTI-COLA:</p>
+                  <p className="font-medium mb-1">⚠️ IMPORTANTE - SISTEMA ANTI-COLA RIGOROSO:</p>
                   <ul className="space-y-1 text-xs">
-                    {!isMobile && <li>• A prova será em tela cheia</li>}
+                    {!isMobile && <li>• A prova será em tela cheia obrigatória</li>}
                     <li>• {isMobile ? 'NÃO saia do aplicativo' : 'NÃO saia da tela cheia'}</li>
-                    <li>• NÃO troque de aba ou minimize</li>
+                    <li>• NÃO troque de aba, minimize ou navegue</li>
                     <li>• NÃO use ferramentas de desenvolvimento</li>
-                    <li>• <strong>QUALQUER tentativa de cola FINALIZARÁ a prova automaticamente</strong></li>
+                    <li>• NÃO pressione botões de voltar/avançar</li>
+                    <li>• <strong>QUALQUER violação FINALIZARÁ a prova AUTOMATICAMENTE</strong></li>
                   </ul>
                 </div>
               </div>

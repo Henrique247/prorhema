@@ -16,6 +16,8 @@ export interface Exam {
   teacher_id: string;
   created_at: string;
   updated_at: string;
+  is_active: boolean;
+  expires_at: string;
 }
 
 export interface ExamSubmission {
@@ -28,6 +30,7 @@ export interface ExamSubmission {
   feedback?: string;
   score: number;
   completed_at: string;
+  is_manual: boolean;
 }
 
 export const useExams = () => {
@@ -140,6 +143,35 @@ export const useExams = () => {
     }
   };
 
+  const toggleExamStatus = async (examId: string, isActive: boolean) => {
+    try {
+      const { error } = await supabase
+        .from('exams')
+        .update({ is_active: isActive })
+        .eq('id', examId);
+
+      if (error) throw error;
+
+      setExams(prev => prev.map(exam => 
+        exam.id === examId ? { ...exam, is_active: isActive } : exam
+      ));
+      
+      toast({
+        title: isActive ? "Prova ativada" : "Prova desativada",
+        description: isActive ? 
+          "A prova está agora disponível para os alunos." : 
+          "A prova foi desativada e não está mais acessível.",
+      });
+    } catch (error) {
+      console.error('Erro ao alterar status da prova:', error);
+      toast({
+        title: "Erro ao alterar status",
+        description: "Não foi possível alterar o status da prova.",
+        variant: "destructive",
+      });
+    }
+  };
+
   const deleteExam = async (examId: string) => {
     try {
       const { error } = await supabase
@@ -171,6 +203,7 @@ export const useExams = () => {
         .from('exams')
         .select('*')
         .eq('exam_code', examCode)
+        .eq('is_active', true)
         .single();
 
       if (error) throw error;
@@ -181,14 +214,30 @@ export const useExams = () => {
     }
   };
 
+  const deactivateExpiredExams = async () => {
+    try {
+      const { error } = await supabase.rpc('deactivate_expired_exams');
+      if (error) throw error;
+      
+      // Recarregar provas após desativar as expiradas
+      fetchExams();
+    } catch (error) {
+      console.error('Erro ao desativar provas expiradas:', error);
+    }
+  };
+
   useEffect(() => {
     fetchExams();
+    // Verificar provas expiradas a cada 5 minutos
+    const interval = setInterval(deactivateExpiredExams, 5 * 60 * 1000);
+    return () => clearInterval(interval);
   }, [teacher]);
 
   return {
     exams,
     loading,
     createExam,
+    toggleExamStatus,
     deleteExam,
     getExamByCode,
     refetch: fetchExams

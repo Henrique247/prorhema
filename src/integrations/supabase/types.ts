@@ -44,6 +44,7 @@ export type Database = {
           exam_id: string
           feedback: string | null
           id: string
+          is_manual: boolean
           question_responses: Json | null
           score: number
           student_name: string
@@ -55,6 +56,7 @@ export type Database = {
           exam_id: string
           feedback?: string | null
           id?: string
+          is_manual?: boolean
           question_responses?: Json | null
           score?: number
           student_name: string
@@ -66,6 +68,7 @@ export type Database = {
           exam_id?: string
           feedback?: string | null
           id?: string
+          is_manual?: boolean
           question_responses?: Json | null
           score?: number
           student_name?: string
@@ -86,7 +89,9 @@ export type Database = {
           created_at: string
           duration_minutes: number
           exam_code: string
+          expires_at: string | null
           id: string
+          is_active: boolean
           pdf_content: string | null
           question_details: Json | null
           question_types: Json | null
@@ -100,7 +105,9 @@ export type Database = {
           created_at?: string
           duration_minutes?: number
           exam_code: string
+          expires_at?: string | null
           id?: string
+          is_active?: boolean
           pdf_content?: string | null
           question_details?: Json | null
           question_types?: Json | null
@@ -114,7 +121,9 @@ export type Database = {
           created_at?: string
           duration_minutes?: number
           exam_code?: string
+          expires_at?: string | null
           id?: string
+          is_active?: boolean
           pdf_content?: string | null
           question_details?: Json | null
           question_types?: Json | null
@@ -210,6 +219,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      deactivate_expired_exams: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
       generate_exam_code: {
         Args: Record<PropertyKey, never>
         Returns: string
